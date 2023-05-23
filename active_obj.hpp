@@ -2,7 +2,7 @@
 #define ACTIVEOBJECT_H
 
 #include "thread_q.hpp"
-
+//cpp
 class ActiveObject {
 private:
     pthread_t thread;
