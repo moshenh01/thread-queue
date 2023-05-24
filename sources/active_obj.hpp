@@ -5,7 +5,7 @@
 //cpp
 class ActiveObject {
 private:
-    pthread_t thread;
+    
     ThreadQueue* queue;
     void (*func)(void*);
     bool active;
@@ -13,14 +13,21 @@ private:
 public:
     ActiveObject(void (*func)(void*));
     ~ActiveObject();
-
-    void run();
+    
+    pthread_t thread;
+    static ActiveObject *pipe[4];
+    
+    void runInternal();
+    
     ThreadQueue* getQueue();
     void stop();
-    pthread_t getThread(); // Public getter for the thread
+
+protected:
+    
 };
 
 ActiveObject* createActiveObject(void (*func)(void*));
 void destroyActiveObject(ActiveObject* obj);
+
 
 #endif // ACTIVEOBJECT_H

@@ -1,5 +1,5 @@
 #include "active_obj.hpp"
-
+using namespace std;
 ActiveObject::ActiveObject(void (*func)(void*)) {
     this->func = func;
     this->active = true;
@@ -7,35 +7,44 @@ ActiveObject::ActiveObject(void (*func)(void*)) {
 }
 
 ActiveObject::~ActiveObject() {
-    stop();
     delete queue;
 }
-
-void ActiveObject::run() {
+static void* run(void* arg) {
+    ActiveObject* obj = static_cast<ActiveObject*>(arg);
+    obj->runInternal();
+    return nullptr;
+}
+void ActiveObject::runInternal() {
     while (void* task = queue->dequeue()) {
         func(task);
+      
     }
+    
 }
 
+
 ThreadQueue* ActiveObject::getQueue() {
-    return queue;
+    return this->queue;
 }
 
 void ActiveObject::stop() {
     active = false;
+    pthread_cancel(thread);
+    pthread_join(thread, nullptr);
+    //call destructor
+    delete queue;
+    queue = nullptr;
 }
-pthread_t ActiveObject::getThread() {
-    return thread;
-}
+ActiveObject* ActiveObject::pipe[4] = { nullptr, nullptr, nullptr, nullptr };
+
 
 ActiveObject* createActiveObject(void (*func)(void*)) {
     ActiveObject* obj = new ActiveObject(func);
-    pthread_create(&obj->getThread(), nullptr, (void* (*)(void*))&ActiveObject::run, obj);
+    pthread_create(&obj->thread, nullptr, &run, obj);
     return obj;
 }
 
 void destroyActiveObject(ActiveObject* obj) {
     obj->stop();
-    pthread_join(obj->getThread(), nullptr);
     delete obj;
 }

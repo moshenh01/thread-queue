@@ -3,6 +3,9 @@
 
 #include <queue>
 #include <mutex>
+#include <iostream>
+#include <thread>
+
 #include <condition_variable>
 
 
@@ -14,12 +17,14 @@ private:
     
 
 public:
-    ThreadQueue = default;
+    ThreadQueue();
     
     void enqueue(void* item);
     void* dequeue();
     
 };
+
+int isPrime(void *number);
 
 
 
