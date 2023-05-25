@@ -6,26 +6,36 @@
 class ActiveObject {
 private:
     
-    ThreadQueue* queue;
-    void (*func)(void*);
-    bool active;
+    ThreadQueue* queue = nullptr;
+    void (*func)(void*) = nullptr;
+    bool active = false;
+    std::mutex mut;
+    std::condition_variable cond;
+    std::thread thread;
+    int itertion;
+    
+   
 
 public:
     ActiveObject(void (*func)(void*));
     ~ActiveObject();
     
-    pthread_t thread;
-    static ActiveObject *pipe[4];
-    
+    void startThread(){
+        thread = std::thread([this](){
+            runInternal();
+        });
+    }
+    int getIteration() {
+        return itertion;
+    }
     void runInternal();
-    
     ThreadQueue* getQueue();
     void stop();
+   
 
-protected:
+
     
 };
-
 ActiveObject* createActiveObject(void (*func)(void*));
 void destroyActiveObject(ActiveObject* obj);
 

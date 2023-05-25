@@ -4,20 +4,24 @@ ActiveObject::ActiveObject(void (*func)(void*)) {
     this->func = func;
     this->active = true;
     this->queue = new ThreadQueue();
+    this->itertion = 0;
 }
 
 ActiveObject::~ActiveObject() {
     delete queue;
 }
-static void* run(void* arg) {
-    ActiveObject* obj = static_cast<ActiveObject*>(arg);
-    obj->runInternal();
-    return nullptr;
-}
+
 void ActiveObject::runInternal() {
     while (void* task = queue->dequeue()) {
+        if(*(int*)task == 0) {
+            //cout << "break" << endl;
+            break;
+        }
+        
         func(task);
-      
+        this->itertion++; 
+        //cout<<"iteration: "<<itertion<<endl;
+
     }
     
 }
@@ -29,18 +33,20 @@ ThreadQueue* ActiveObject::getQueue() {
 
 void ActiveObject::stop() {
     active = false;
-    pthread_cancel(thread);
-    pthread_join(thread, nullptr);
-    //call destructor
+    //cencel thread
+    int end = 0;
+    queue->enqueue(&end);
+    thread.join();
     delete queue;
+    //call destructor
     queue = nullptr;
 }
-ActiveObject* ActiveObject::pipe[4] = { nullptr, nullptr, nullptr, nullptr };
+
 
 
 ActiveObject* createActiveObject(void (*func)(void*)) {
     ActiveObject* obj = new ActiveObject(func);
-    pthread_create(&obj->thread, nullptr, &run, obj);
+    obj->startThread();
     return obj;
 }
 

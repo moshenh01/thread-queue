@@ -5,7 +5,7 @@
 #include <mutex>
 #include <iostream>
 #include <thread>
-
+#include <memory>  // for std::unique_ptr
 #include <condition_variable>
 
 
@@ -18,13 +18,14 @@ private:
 
 public:
     ThreadQueue();
+    ~ThreadQueue()=default;
     
     void enqueue(void* item);
     void* dequeue();
     
 };
 
-int isPrime(void *number);
+
 
 
 
