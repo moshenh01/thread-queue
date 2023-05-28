@@ -1,9 +1,10 @@
 #include "thread_q.hpp"
 
-#include "thread_q.hpp"
+
 using namespace std;
 
-
+std::condition_variable cond;
+std::mutex mtx;
 
 
 ThreadQueue::ThreadQueue():th_queue(),mutex(),notEmpty() {}

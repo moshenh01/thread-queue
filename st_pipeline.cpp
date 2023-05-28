@@ -1,17 +1,24 @@
 #include <iostream>
 #include <cstdlib>
 #include <ctime>
-#include "active_obj.hpp"
-#include <memory>  // for std::unique_ptr
+#include <random>
+#include "sources/active_obj.hpp"
+#include "sources/thread_q.hpp"
+#include "shared_variables.hpp"
 
 
 using namespace std;
 
 
-std::vector<int*> allocatedPointers;
+std::vector<int*>    allocatedPointers1;
+std::vector<int*>    allocatedPointers2;
+std::vector<int*>    allocatedPointers3;
+std::vector<int*>    allocatedPointers4;
+
 int numOfPrimes = 0;
 
 ActiveObject* pipee[4]{nullptr};
+
 int isPrime(unsigned int number) {
 
     
@@ -42,6 +49,7 @@ int usePrime(int number) {
     return isPrime(num);
 }
 
+
 // First Active Object - Generates random numbers
 void generateNumbers(void* arg) {
     //arg is arr[2]
@@ -55,11 +63,22 @@ void generateNumbers(void* arg) {
     
        for (int i = 0; i < N; i++) {
         int* gNumber = new int;
+
+        // Check if allocation failed
+        if(gNumber == nullptr){
+            cout<<"gNumber is null"<<endl;
+            exit(1);
+        }
+
         *gNumber = std::rand() % 1000000;
-       // cout << "1) Generated number: " << *gNumber << endl;
+        while(*gNumber < 100000){
+            *gNumber = std::rand() % 1000000;
+        }
+        //cout << "1) Generated number: " << *gNumber << endl;
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
         pipee[1]->getQueue()->enqueue(gNumber);
-         allocatedPointers.push_back(gNumber);
+
+         allocatedPointers1.push_back(gNumber);
 
         
     }
@@ -72,8 +91,15 @@ void generateNumbers(void* arg) {
 // Second Active Object - Checks if number is prime
 void checkPrime(void* arg) {
     int* number = new int;
+    if (number == nullptr)
+    {
+        cout<<"number is null"<<endl;
+        exit(1);
+    }
+    
     // "isPrime" need to be thread safe
     *number = *(int*)arg;
+    cout<<*number<<endl;
    
     int ans = usePrime(*number);
     if(ans == 1){
@@ -81,32 +107,37 @@ void checkPrime(void* arg) {
     }
   
     bool isPrime = (bool)ans;
-    //std::cout << "2) Number: " << *number << ", Is Prime: " << std::boolalpha <<isPrime<< std::endl;
+    std::cout << std::boolalpha <<isPrime<< std::endl;
 
     *number += 11;
 
     
     pipee[2]->getQueue()->enqueue(number);
-    allocatedPointers.push_back(number);
+    allocatedPointers2.push_back(number);
     
 }
 
 // Third Active Object - Prints number and checks if it is prime
 void printAndCheckPrime(void* arg) {
     int* number = new int;
+    if (number == nullptr)
+    {
+        cout<<"number is null"<<endl;
+        exit(1);
+    }
     *number = *(int*)arg;
-    
+    cout<<*number<<endl;
 
     // "isPrime" need to be thread safe
    
     int ans = usePrime(*number);
     
     bool isPrime = ans;
-   // std::cout << "3) Number: " << *number << ", Is Prime: " << std::boolalpha << isPrime << std::endl;
+    std::cout <<std::boolalpha << isPrime << std::endl;
     *number -= 13;
     
     pipee[3]->getQueue()->enqueue(number);
-    allocatedPointers.push_back(number);
+    allocatedPointers3.push_back(number);
     
     
 }
@@ -115,13 +146,14 @@ void printAndCheckPrime(void* arg) {
 void printAndAddTwo(void* arg) {
     int* number = new int;
     *number = *(int*)arg;
-    //std::cout << "4)Number: " << number << std::endl;
+    std::cout<< *number << std::endl;
     *number += 2;
-    //std::cout << "4)New number: " << *number << std::endl;
-    allocatedPointers.push_back(number);
+    std::cout<< *number << std::endl;
+    allocatedPointers4.push_back(number);
     
 }
 
+int global_N;
 int main(int argc, char* argv[]) {
     if (argc < 2) {
         std::cout << "Usage: pipeline_st <N> [seed]" << std::endl;
@@ -129,9 +161,10 @@ int main(int argc, char* argv[]) {
     }
 
     int N = std::stoi(argv[1]);
+    global_N = N;
     int seed = (argc >= 3) ? std::stoi(argv[2]) : std::time(nullptr);
-    std::mutex mut;
-    std::condition_variable cond;
+    //std::mutex mut;
+    //std::condition_variable cond;
     //std::cout << "N: " << N << ", Seed: " << seed << std::endl;
     if(seed <= 0) {
         std::cout << "Seed must be a positive integer" << std::endl;
@@ -156,21 +189,23 @@ int main(int argc, char* argv[]) {
     // Wait for the pipeline to finish
 
     
-     while( (pipee[3]->getIteration() < N )){
-        std::this_thread::sleep_for(std::chrono::milliseconds(1));
-     }
-     
-    //  std::unique_lock<std::mutex> lock(mut);
-    //  while( (pipee[3]->getIteration() < N ) ) {
-       
-    //     cond.wait(lock);
+    //  while( (pipee[3]->isActive() == true)){
+    //     std::this_thread::sleep_for(std::chrono::milliseconds(1));
     //  }
+    
+
+     std::unique_lock<std::mutex> lock(mtx);
+     while( (pipee[3]->getIteration() < N )) {
+       
+       //cout << "waiting" << endl;
+       cond.wait(lock);
+     }
 
     
-    cout << "All threads finished" << endl;
+   // cout << "All threads finished" << endl;
 
-    cout << "Number of primes: " << numOfPrimes << endl;
-    cout << "prime ratio: " << (double)numOfPrimes/N << endl;
+    // cout << "Number of primes: " << numOfPrimes << endl;
+    // cout << "prime ratio: " << (double)numOfPrimes/N << endl;
 
     // Wait for the pipeline to finish
     
@@ -181,8 +216,17 @@ int main(int argc, char* argv[]) {
     destroyActiveObject(pipee[1]);
     destroyActiveObject(pipee[2]);
     destroyActiveObject(pipee[3]);
-     for (unsigned long i = 0; i < allocatedPointers.size(); i++) {
-        delete allocatedPointers[i];
+     for (unsigned long i = 0; i < allocatedPointers1.size(); i++) {
+        delete allocatedPointers1[i];
+    }
+    for (unsigned long i = 0; i < allocatedPointers2.size(); i++) {
+        delete allocatedPointers2[i];
+    }
+    for (unsigned long i = 0; i < allocatedPointers3.size(); i++) {
+        delete allocatedPointers3[i];
+    }
+    for (unsigned long i = 0; i < allocatedPointers4.size(); i++) {
+        delete allocatedPointers4[i];
     }
 
     return 0;
