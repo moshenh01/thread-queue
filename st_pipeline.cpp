@@ -4,7 +4,7 @@
 #include <random>
 #include "sources/active_obj.hpp"
 #include "sources/thread_q.hpp"
-#include "shared_variables.hpp"
+#include "sources/shared_variables.hpp"
 
 
 using namespace std;
